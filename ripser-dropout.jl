@@ -17,17 +17,20 @@ end
 # ╔═╡ ddee035c-de33-11ed-0e6c-31f9b7c2d257
 using Ripserer
 
-# ╔═╡ 7b22bbac-44f0-4de6-925d-c39817197b39
-using LinearAlgebra
-
 # ╔═╡ 0d4c796f-aa45-4451-877c-ac07e3aacf7e
-using Plots
+using Plots, PlutoUI
 
-# ╔═╡ 94f5a855-7580-460a-9868-b389f7e70b9f
-using PlutoUI
+# ╔═╡ ba9d5086-67b0-4d1a-892b-147ee6b3c531
+using Random, Distributions, LinearAlgebra, CoordinateTransformations
+
+# ╔═╡ 753c15c2-0589-4cdf-819a-8facc900952c
+plotly()
 
 # ╔═╡ 4259d817-3d8a-475c-9675-719bc469b297
 ts = 0.01:0.01:1.5
+
+# ╔═╡ 5ed2e398-5324-4afb-bae2-02bd06f6a596
+
 
 # ╔═╡ 3145f40f-0630-445d-b8a5-406b5529ac43
 @bind ε Slider(0.01:0.01:0.59; default=0.53, show_value=true)
@@ -40,6 +43,80 @@ ts = 0.01:0.01:1.5
 
 # ╔═╡ dde25844-6e71-4d7e-b74c-626a7cb63558
 
+
+# ╔═╡ 25b4667f-d47d-4e76-ada8-e52d1c03a0d3
+
+
+# ╔═╡ aff639d6-a1c7-4dd8-804b-6207c08aba02
+
+
+# ╔═╡ 650095ac-7bda-4bb8-80c8-6e1f5233042f
+@bind sphere_threshold Slider(0.0:0.01:2)
+
+# ╔═╡ d487922f-1c06-4d39-997f-f8df99f01d89
+function sample_dsphere(d::Int, radius::Real, variance::Real)
+    # Sample radius with some variance
+    r0 = rand(Normal(radius, variance))
+	r = r0
+
+    # Generate random angles for polar coordinates in the range [0, pi] for all but the last angle
+    angles = rand(Uniform(0, pi), d - 1)
+
+    # Set the last angle in the range [0, 2*pi]
+    angles[end] = rand(Uniform(0, 2 * pi))
+
+    return [r0; angles]
+end
+
+# ╔═╡ 6ca52b21-8eb0-4e53-9877-a3daf06f505f
+function sample_point_from_dsphere(d::Int, n::Int=1)
+    points = zeros(d, n)
+    for i in 1:n
+        u = rand(Normal(0, 1), d)
+        norm_u = sqrt(sum(u .^ 2))
+        points[:, i] = u ./ norm_u
+    end
+    return points
+end
+
+# ╔═╡ 5d900f16-26a8-410b-aaee-b68158b4e143
+begin
+	d = 3  # Set the dimension of the sphere
+	n = 100  # Set the number of points you want to sample
+	r = 1 # Set radius
+	σ2 = 0.1
+	
+	points = sample_point_from_dsphere(d, n)
+	x = points[1, :] # .* rand(Normal(1, σ2), n)
+	y = points[2, :] # .* rand(Normal(1, σ2), n)
+	z = points[3, :] # .* rand(Normal(1, σ2), n)
+	points = hcat(x,y,z)'
+
+	scatter(x,y,z)
+end
+
+# ╔═╡ 37daf881-2631-4506-a49a-97e8b307418b
+sphere_data = [(x[i], y[i], z[i]) for i in 1:length(x)]
+
+# ╔═╡ e775b838-af0f-402e-98e3-2533be06621e
+sphere = ripserer(sphere_data, threshold=sphere_threshold, alg=:involuted)
+
+# ╔═╡ a4b8e769-9da9-4cda-be36-5eb9a3653562
+barcode(sphere) # ripserer seems to only compute the first two groups
+
+# ╔═╡ 4c765708-d3a6-4e03-8452-0eaef0cdd3f2
+function p2c(v)
+	r = v[1]
+	angles = v[2:end]
+	# Compute the Cartesian coordinates
+    c = ones(d)
+    for i in 1:(d - 1)
+        c[i] *= r * sin(angles[i])
+        r *= cos(angles[i])
+    end
+    c[end] *= r
+	c
+end
 
 # ╔═╡ 7779d1c3-deb1-42d6-aa85-2fa2271b5705
 function value_count(arr)
@@ -147,12 +224,17 @@ scatter(X[1], X[2], X[3], markerstrokewidth=0, alpha=0.5, zlabel="Count", zlims=
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Ripserer = "aa79e827-bd0b-42a8-9f10-2b302677a641"
 
 [compat]
+CoordinateTransformations = "~0.6.2"
+Distributions = "~0.25.87"
 Plots = "~1.38.9"
 PlutoUI = "~0.7.50"
 Ripserer = "~0.16.12"
@@ -164,7 +246,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "40bfa75a4f85fde71944fb647b5b78c086f36bde"
+project_hash = "137204878cc33a135a2f1002612a2963b431e1df"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -273,6 +355,12 @@ version = "1.0.1+0"
 [[deps.Contour]]
 git-tree-sha1 = "d05d9e7b7aedff4e5b51a029dced05cfb6125781"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
+version = "0.6.2"
+
+[[deps.CoordinateTransformations]]
+deps = ["LinearAlgebra", "StaticArrays"]
+git-tree-sha1 = "681ea870b918e7cff7111da58791d7f718067a19"
+uuid = "150eb455-5306-5404-9cee-2592286d6298"
 version = "0.6.2"
 
 [[deps.Crayons]]
@@ -1367,12 +1455,13 @@ version = "1.4.1+0"
 
 # ╔═╡ Cell order:
 # ╠═ddee035c-de33-11ed-0e6c-31f9b7c2d257
-# ╠═7b22bbac-44f0-4de6-925d-c39817197b39
 # ╠═0d4c796f-aa45-4451-877c-ac07e3aacf7e
-# ╠═94f5a855-7580-460a-9868-b389f7e70b9f
+# ╠═753c15c2-0589-4cdf-819a-8facc900952c
+# ╠═ba9d5086-67b0-4d1a-892b-147ee6b3c531
 # ╠═37f880ea-d068-4bbc-afd8-619171b9ce26
 # ╠═27dcbdb0-4d27-46ac-99ae-fc5fb6a79f61
 # ╠═4259d817-3d8a-475c-9675-719bc469b297
+# ╠═5ed2e398-5324-4afb-bae2-02bd06f6a596
 # ╠═31f884c0-a26c-4e47-a050-1b417dbdea40
 # ╠═dbb65a26-eb49-4833-a905-75c976446f49
 # ╠═3145f40f-0630-445d-b8a5-406b5529ac43
@@ -1384,6 +1473,16 @@ version = "1.4.1+0"
 # ╠═34baf575-85f0-4c59-b651-6257f3020be4
 # ╠═14d4afdf-6825-47f3-b9bc-90d3de13efb4
 # ╠═d6e180e2-49b7-489a-bb77-bceee0281a3f
+# ╠═25b4667f-d47d-4e76-ada8-e52d1c03a0d3
+# ╠═5d900f16-26a8-410b-aaee-b68158b4e143
+# ╠═37daf881-2631-4506-a49a-97e8b307418b
+# ╠═e775b838-af0f-402e-98e3-2533be06621e
+# ╠═aff639d6-a1c7-4dd8-804b-6207c08aba02
+# ╠═650095ac-7bda-4bb8-80c8-6e1f5233042f
+# ╠═a4b8e769-9da9-4cda-be36-5eb9a3653562
+# ╠═d487922f-1c06-4d39-997f-f8df99f01d89
+# ╠═4c765708-d3a6-4e03-8452-0eaef0cdd3f2
+# ╠═6ca52b21-8eb0-4e53-9877-a3daf06f505f
 # ╠═f800a760-9628-488f-9b83-a2f2a250c001
 # ╠═7779d1c3-deb1-42d6-aa85-2fa2271b5705
 # ╠═42fc3fc2-75cc-45a9-825f-4daaaa824179
